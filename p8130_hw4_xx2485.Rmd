@@ -1,0 +1,169 @@
+---
+title: "p8130_hw4_xx2485"
+author: "Xiaoni Xu"
+date: "2024-11-16"
+output: github_document
+---
+
+Loading needed packages
+```{r, message = FALSE}
+library(readxl)
+library(janitor)
+```
+
+## Problem 1
+
+Perform sign test.
+```{r}
+data <- c(125, 123, 117, 123, 115, 112, 128, 118, 124, 111, 116, 109, 
+          125, 120, 113, 123, 112, 118, 121, 118, 122, 115, 105, 118, 131)
+
+# Define the hypothesized median
+median_hypothesis <- 120
+
+# Count values above and below the hypothesized median
+above <- sum(data > median_hypothesis)
+below <- sum(data < median_hypothesis)
+
+# Perform the sign test
+binom_test <- binom.test(below, below + above, p = 0.5, alternative = "less")
+
+# Report results
+binom_test
+
+```
+We conducted an exact binomial test to evaluate whether the median blood sugar level in the population is less than 120. The hypotheses were as follows:
+
+\[
+H_0: \text{The true median is } \geq 120 \quad \text{(probability of success } = 0.5\text{)}.
+\]
+\[
+H_a: \text{The true median is } < 120 \quad \text{(probability of success } > 0.5\text{)}.
+\]
+
+The test results are:
+- Number of successes (blood sugar readings below 120): \(14\)
+- Number of trials: \(24\)
+- p-value: \(0.8463\)
+- 95\% confidence interval for the probability of success: \([0.000, 0.7536]\)
+
+Since the p-value (\(0.8463\)) is greater than the significance level (\(\alpha = 0.05\)), we fail to reject the null hypothesis. 
+
+Conclusion: There is no statistically significant evidence to suggest that the median blood sugar level in the population is less than 120.
+
+The test statistic is 14.
+
+
+Perform Wilcoxon signed-rank test.
+```{r}
+# Calculate differences from the hypothesized median
+differences <- data - 120
+
+# Remove zero differences
+nonzero_differences <- differences[differences != 0]
+
+# Rank absolute differences, handling ties with average ranks
+abs_differences <- abs(nonzero_differences)
+ranks <- rank(abs_differences)
+
+# Sum ranks for negative differences
+negative_ranks <- ranks[nonzero_differences < 0]
+W_minus <- sum(negative_ranks)
+
+# Calculate p-value using the normal approximation
+n <- length(nonzero_differences)
+mean_W <- n * (n + 1) / 4
+sd_W <- sqrt(n * (n + 1) * (2 * n + 1) / 24)
+
+z <- (W_minus - mean_W) / sd_W
+p_value <- pnorm(z)
+
+# Results
+list(
+  test_statistic = W_minus,
+  p_value = p_value,
+  z_score = z
+)
+```
+Since the p-value (\(0.8580\)) is greater than the significance level (\(\alpha = 0.05\)), we fail to reject the null hypothesis.
+
+There is no statistically significant evidence to suggest that the median blood sugar level in the population is less than 120.
+
+
+## Problem 2
+
+### (a)
+```{r}
+# Load the data
+brain <- read_excel("Brain.xlsx") %>% 
+  clean_names()
+
+
+# Filter out the human species (Homo sapiens)
+nonhuman_data <- subset(brain, species != "Homo sapiens")
+
+# Fit a regression model using ln_brain_mass as the predictor for glia_neuron_ratio
+model <- lm(glia_neuron_ratio ~ ln_brain_mass, data = nonhuman_data)
+
+# Summary of the regression model
+summary(model)
+```
+
+
+The regression model shows that \( \ln(\text{Brain Mass}) \) is a significant predictor of the glia-neuron ratio in nonhuman species (\(p < 0.001\)). The positive slope (\(0.1811\)) indicates that species with larger brain masses (in terms of the natural logarithm) tend to have higher glia-neuron ratios. The model explains a substantial portion of the variability in the data (\(R^2 = 0.6274\)), making it a good fit for the observed relationship.
+
+### (b)
+
+```{r}
+# Given human brain mass
+human_brain_mass <- 1373.3
+
+# Calculate the natural logarithm of human brain mass
+ln_human_brain_mass <- log(human_brain_mass)
+
+# Use the regression coefficients from the model to predict glia-neuron ratio
+intercept <- 0.1637  # From the regression model
+slope <- 0.1811      # From the regression model
+
+# Predicted glia-neuron ratio
+predicted_glia_neuron_ratio <- intercept + slope * ln_human_brain_mass
+
+# Output the result
+predicted_glia_neuron_ratio
+```
+The predicted glia-neuron ratio for humans, given their brain mass is `r predicted_glia_neuron_ratio`.
+
+### (c)
+
+An interval for the **predicted mean glianeuron ratio at the given brain mass** would be more relevant. We want to compare the human brain’s glia-neuron ratio with the predicted mean of other primates, not with a single new observation.
+
+### (d)
+
+```{r}
+# Construct a new data frame for prediction
+new_data <- data.frame(ln_brain_mass = ln_human_brain_mass)
+
+# Get prediction with confidence interval
+ci <- predict(model, newdata = new_data, interval = "confidence", level = 0.95)
+
+ci
+```
+The **95% Confidence Interval** (CI) for the mean glia-neuron ratio at a brain mass of 1373.3 g is:
+\[
+[1.230, 1.715]
+\]
+
+This interval represents the plausible range for the **mean glia-neuron ratio** of primates at this brain mass. Since the observed human glia-neuron ratio (\(1.65\)) falls within this interval, human brain does NOT have an excessive glia-neuron ratio for its mass compared with other primates.
+
+### (e)
+
+- The human data point represents the largest brain mass and glia-neuron ratio in the dataset, at the edge of the range of nonhuman primate data.
+
+   - This makes the prediction for humans effectively an extrapolation, as the regression model is based primarily on nonhuman primate data. Predictions for humans may be less reliable due to limited data in this range.
+
+- The human data point is almost an outlier from the graph, both in terms of \( \ln(\text{Brain Mass}) \) and glia-neuron ratio.
+
+   - Regression models are sensitive to outliers, which can disproportionately influence the slope and intercept of the regression line, potentially leading to biased results.
+
+
+## Problem 3
