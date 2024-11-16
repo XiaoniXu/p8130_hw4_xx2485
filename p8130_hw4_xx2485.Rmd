@@ -11,6 +11,7 @@ library(readxl)
 library(janitor)
 library(tidyverse)
 library(knitr)
+library(ggplot2)
 ```
 
 ## Problem 1
@@ -237,3 +238,231 @@ print(interventions_table)
 ```
 
 ### (b)
+```{r}
+ggplot(heart_data, aes(x = totalcost)) +
+  geom_histogram(binwidth = 1000, fill = "#4d5aaf", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Total Cost", x = "Total Cost", y = "Frequency") +
+  theme_minimal()
+```
+
+Apply transformations:
+
+```{r}
+# Apply log transformation (adding 1 to avoid log(0))
+heart_data$totalcost_log <- log(heart_data$totalcost + 1)
+
+# Apply square root transformation
+heart_data$totalcost_sqrt <- sqrt(heart_data$totalcost)
+
+# Apply inverse transformation (1/totalcost)
+heart_data$totalcost_inv <- 1 / (heart_data$totalcost + 1)
+
+# Plot transformed distributions
+log_plot <- ggplot(heart_data, aes(x = totalcost_log)) +
+  geom_histogram(binwidth = 0.5, fill = "#1e50a2", color = "black", alpha = 0.7) +
+  labs(title = "Log-Transformed Total Cost", x = "Log(Total Cost)", y = "Frequency") +
+  theme_minimal()
+
+sqrt_plot <- ggplot(heart_data, aes(x = totalcost_sqrt)) +
+  geom_histogram(binwidth = 1, fill = "#aacf53", color = "black", alpha = 0.7) +
+  labs(title = "Square Root-Transformed Total Cost", x = "Square Root(Total Cost)", y = "Frequency") +
+  theme_minimal()
+
+inv_plot <- ggplot(heart_data, aes(x = totalcost_inv)) +
+  geom_histogram(binwidth = 0.001, fill = "#a22041", color = "black", alpha = 0.7) +
+  labs(title = "Inverse-Transformed Total Cost", x = "Inverse(Total Cost)", y = "Frequency") +
+  theme_minimal()
+
+# Display all plots
+log_plot
+sqrt_plot
+inv_plot
+```
+
+The shape of the distribution for variable `totalcost` is extremely left-skewed, but after log transformation, it follows roughly a normal distribution shape.
+
+### (c) 
+
+```{r}
+heart_data <- heart_data %>%
+  mutate(comp_bin = ifelse(complications == 0, 0, 1))
+```
+
+### (d)
+
+```{r}
+# Create scatterplot with regression line
+ggplot(heart_data, aes(x = ERvisits, y = log(totalcost))) +
+  geom_point(color = "#4d5aaf", size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#a22041", se = TRUE) +
+  labs(title = "Scatterplot of Log(Total Cost) vs ER Visits",
+       x = "Number of ER Visits",
+       y = "Log(Total Cost)") +
+  theme_minimal()
+```
+
+```{r}
+# Fit a simple linear regression model
+log_model <- lm(log(totalcost + 1) ~ ERvisits, data = heart_data)
+
+
+# Summary of regression results
+model_summary <- summary(log_model)
+
+```
+
+
+The p-value for the slope coefficient of `ERvisits` is `r signif(summary(log_model)$coefficients[2, 4], 4)`, which is less than the significance level of 0.05. This indicates that the slope is statistically significant. Therefore, there is strong evidence that the number of ER visits is associated with the log-transformed total cost.
+
+
+The regression equation based on the output is:
+\[
+\text{Log(Total Cost + 1)} = `r signif(summary(log_model)$coefficients[1, 1], 4)` + `r signif(summary(log_model)$coefficients[2, 1], 4)` \cdot \text{ERvisits}
+\]
+
+
+The slope coefficient for `ERvisits` is `r signif(summary(log_model)$coefficients[2, 1], 4)`. This means that for every additional ER visit, the log-transformed total cost is expected to increase by approximately `r signif(summary(log_model)$coefficients[2, 1], 4)` units on average.
+
+### (e) 
+
+```{r}
+# Fit the multiple linear regression model
+mlr_model <- lm(formula = log(heart_data$totalcost + 1) ~ heart_data$ERvisits * heart_data$comp_bin)
+
+mlr_model
+```
+
+From the regression model, the interaction term `heart_data$ERvisits:heart_data$comp_bin` has a coefficient of `r signif(-0.09753, 4)` and a p-value of `r signif(0.311, 4)`. 
+
+The p-value is greater than 0.05, indicating that the interaction term is not statistically significant. Thus, `comp_bin` does not modify the relationship between `totalcost` and `ERvisits`.
+
+
+
+Test if comp_bin is a confounder of the relationship between totalcost and ERvisits.
+```{r}
+# Model 1: Without `comp_bin`
+model_no_comp <- lm(log(heart_data$totalcost + 1) ~ heart_data$ERvisits, data = heart_data)
+
+# Model 2: Including `comp_bin`
+model_with_comp <- lm(log(heart_data$totalcost + 1) ~ heart_data$ERvisits + heart_data$comp_bin, data = heart_data)
+
+# Summaries of the models
+summary_no_comp <- summary(model_no_comp)
+summary_no_comp
+
+summary_with_comp <- summary(model_with_comp)
+summary_with_comp
+```
+
+Compare the coefficients.
+```{r}
+# Extract coefficients for `ERvisits`
+coef_no_comp <- summary_no_comp$coefficients["heart_data$ERvisits", "Estimate"]
+coef_with_comp <- summary_with_comp$coefficients["heart_data$ERvisits", "Estimate"]
+
+# Calculate percent change
+percent_change <- abs((coef_with_comp - coef_no_comp) / coef_no_comp) * 100
+
+# Display results
+cat("Coefficient of ERvisits without comp_bin:", round(coef_no_comp, 4), "\n")
+cat("Coefficient of ERvisits with comp_bin:", round(coef_with_comp, 4), "\n")
+cat("Percent change in coefficient:", round(percent_change, 2), "%\n")
+```
+
+Conclusion: The percent change in the coefficient of ERvisits is less than 10% (9.92%). This suggests that comp_bin is not a significant confounder of the relationship between totalcost and ERvisits.
+
+
+`comp_bin` should be included along with `ERvisits`. `comp_bin` is a statistically significant predictor, so it improves the explanatory power of the model. It does not act as a confounder either.
+
+
+Adding `comp_bi`n provides additional information about `totalcost` without distorting the relationship between `ERvisits` and `totalcost`.
+
+### (f) 
+
+```{r}
+# Fit the MLR model with additional covariates
+mlr_model_extended <- lm(log(totalcost + 1) ~ ERvisits + comp_bin + age + gender + duration, data = heart_data)
+
+# Show the regression results
+summary(mlr_model_extended)
+```
+
+F-statistic and overall significance:
+
+   - The overall F-statistic is `r signif(summary(mlr_model_extended)$fstatistic[1], 4)`, with a p-value of `r format.pval(summary(mlr_model_extended)$fstatistic[3], 4)` (\( p < 0.05 \)).
+   
+   - This shows that the model is statistically significant and that the predictors collectively explain variability in log-transformed total cost.
+   
+Comments on Individual Predictors
+
+1. ERvisits:
+
+   - Coefficient: `r signif(summary(mlr_model_extended)$coefficients["ERvisits", 1], 4)`
+   
+   - \( p \)-value: `r signif(summary(mlr_model_extended)$coefficients["ERvisits", 4], 4)`
+   
+   - Interpretation: ER visits are significantly increase log-transformed total cost (\( p < 0.05 \)).
+
+2. comp_bin:
+
+   - Coefficient: `r signif(summary(mlr_model_extended)$coefficients["comp_bin", 1], 4)`
+   
+   - \( p \)-value: `r signif(summary(mlr_model_extended)$coefficients["comp_bin", 4], 4)`
+   
+   - Interpretation: Complications significantly increase log-transformed total cost (\( p < 0.05 \)).
+
+3. age:
+
+   - Coefficient: `r signif(summary(mlr_model_extended)$coefficients["age", 1], 4)`
+   
+   - \( p \)-value: `r signif(summary(mlr_model_extended)$coefficients["age", 4], 4)`
+   
+   - Interpretation: Age significantly increase log-transformed total cost (\( p < 0.05 \)).
+
+4. gender:
+
+   - Coefficient: `r signif(summary(mlr_model_extended)$coefficients["genderFemale", 1], 4)`
+   
+   - \( p \)-value: `r signif(summary(mlr_model_extended)$coefficients["genderFemale", 4], 4)`
+   
+   - Interpretation: Gender is not statistically significant (\( p = 0.1364 \)).
+
+5. duration:
+
+   - Coefficient: `r signif(summary(mlr_model_extended)$coefficients["duration", 1], 4)`
+   
+   - \( p \)-value: `r signif(summary(mlr_model_extended)$coefficients["duration", 4], 4)`
+   
+   - Interpretation: Duration significantly increase log-transformed total cost (\( p < 0.05 \)).
+   
+The model explains approximately `r signif(summary(mlr_model_extended)$r.squared * 100, 2)`% of the variability in log-transformed total cost. `ERvisits`, `comp_bin`, `age`, and `duration` are statistically significant, while `gender` is not. Duration has the strongest positive association with log-transformed total cost, followed by `comp_bin` and `ERvisits`.
+
+
+Compare the SLR and MLR models. 
+
+Key Metrics from SLR Model 
+
+1. Residual Standard Error: `r signif(summary(log_model)$sigma, 4)`
+
+2. \( R^2 \): `r signif(summary(log_model)$r.squared, 4)` (approximately `r signif(summary(log_model)$r.squared * 100, 2)`% of variability in total cost explained by ER visits alone).
+
+3. ERvisits Coefficient:
+   - Estimate: `r signif(summary(log_model)$coefficients["ERvisits", 1], 4)`
+   - \( p \)-value: `r signif(summary(log_model)$coefficients["ERvisits", 4], 4)`
+   - Interpretation: The SLR model shows a statistically significant positive association between ER visits and total cost (\( p < 0.05 \)).
+
+Key Metrics from MLR Model
+
+1. Residual Standard Error: `r signif(summary(mlr_model_extended)$sigma, 4)`
+
+2. \( R^2 \): `r signif(summary(mlr_model_extended)$r.squared, 4)` (approximately `r signif(summary(mlr_model_extended)$r.squared * 100, 2)`% of variability in total cost explained by ER visits along with other predictors).
+
+3. Adjusted \( R^2 \): `r signif(summary(mlr_model_extended)$adj.r.squared, 4)`.
+
+4. ERvisits Coefficient:
+   - Estimate: `r signif(summary(mlr_model_extended)$coefficients["ERvisits", 1], 4)`
+   - \( p \)-value: `r signif(summary(mlr_model_extended)$coefficients["ERvisits", 4], 4)`
+   - Interpretation: Even after adjusting for `comp_bin`, `age`, `gender`, and `duration`, ER visits remain a statistically significant positive predictor of total cost (\( p < 0.05 \)).
+
+
+Since the investigator’s primary objective is the association between total cost and ER visits, the **SLR model** would be used to address the objective. It directly quantifies the relationship without adjusting for additional variables, making it simpler and more interpretable for this specific research question. However, if confounders like `comp_bin` are taken into consideration, the **MLR model** would be more appropriate.
