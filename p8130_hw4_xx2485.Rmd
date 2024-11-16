@@ -9,6 +9,8 @@ Loading needed packages
 ```{r, message = FALSE}
 library(readxl)
 library(janitor)
+library(tidyverse)
+library(knitr)
 ```
 
 ## Problem 1
@@ -167,3 +169,71 @@ This interval represents the plausible range for the **mean glia-neuron ratio** 
 
 
 ## Problem 3
+
+### (a)
+
+The main outcome is the number of emergency room (ER) visits, and the main predictor is the total cost in dollars. Other important covariates include age, gender, number of complications, and duration of treatment condition.
+
+```{r}
+# Load the dataset
+heart_data <- read.csv("HeartDisease.csv")
+```
+
+Descriptive statistics for continuous variables:
+```{r}
+# Select continuous variables
+continuous_vars <- heart_data %>%
+  select(totalcost, age, drugs, ERvisits, complications, comorbidities, duration)
+
+# Function to calculate descriptive statistics for one variable
+calculate_stats <- function(variable, var_name) {
+  tibble(
+    Statistic = c("Mean", "SD", "Min", "Max", "Median", "Q1", "Q3"),
+    Value = c(
+      mean(variable, na.rm = TRUE),
+      sd(variable, na.rm = TRUE),
+      min(variable, na.rm = TRUE),
+      max(variable, na.rm = TRUE),
+      median(variable, na.rm = TRUE),
+      quantile(variable, 0.25, na.rm = TRUE),
+      quantile(variable, 0.75, na.rm = TRUE)
+    )
+  ) %>%
+    kable(caption = paste("Descriptive Statistics for", var_name), digits = 2)
+}
+
+# Generate tables for each continuous variable
+for (var in colnames(continuous_vars)) {
+  cat("\n### ", var, "\n")
+  print(calculate_stats(continuous_vars[[var]], var))
+}
+
+```
+
+Descriptive statistics for categorical variables:
+
+```{r}
+# Convert gender and interventions to factors
+heart_data <- heart_data %>%
+  mutate(
+    gender = factor(gender, labels = c("Male", "Female")),
+    interventions = as.factor(interventions)
+  )
+
+# Frequency tables for categorical variables
+gender_table <- heart_data %>%
+  group_by(gender) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+interventions_table <- heart_data %>%
+  group_by(interventions) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+# Display frequency tables
+print(gender_table)
+print(interventions_table)
+```
+
+### (b)
