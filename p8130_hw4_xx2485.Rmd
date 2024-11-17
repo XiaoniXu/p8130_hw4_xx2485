@@ -54,41 +54,20 @@ Since the p-value (\(0.8463\)) is greater than the significance level (\(\alpha 
 
 Conclusion: There is no statistically significant evidence to suggest that the median blood sugar level in the population is less than 120.
 
-The test statistic is 14.
+The test statistic is 10 as we use the smaller number of + and - signs, given n (number of trials) <= 25.
 
 
 Perform Wilcoxon signed-rank test.
 ```{r}
-# Calculate differences from the hypothesized median
-differences <- data - 120
+# Perform the Wilcoxon signed-rank test to check if the median blood sugar level is less than 120
+# H0: median = 120
+# HA: median < 120
+# Set alternative = "less" for a one-sided test
+wilcoxon_test_result = wilcox.test(data, mu = 120, alternative = "less")
 
-# Remove zero differences
-nonzero_differences <- differences[differences != 0]
-
-# Rank absolute differences, handling ties with average ranks
-abs_differences <- abs(nonzero_differences)
-ranks <- rank(abs_differences)
-
-# Sum ranks for negative differences
-negative_ranks <- ranks[nonzero_differences < 0]
-W_minus <- sum(negative_ranks)
-
-# Calculate p-value using the normal approximation
-n <- length(nonzero_differences)
-mean_W <- n * (n + 1) / 4
-sd_W <- sqrt(n * (n + 1) * (2 * n + 1) / 24)
-
-z <- (W_minus - mean_W) / sd_W
-p_value <- pnorm(z)
-
-# Results
-list(
-  test_statistic = W_minus,
-  p_value = p_value,
-  z_score = z
-)
+wilcoxon_test_result
 ```
-Since the p-value (\(0.8580\)) is greater than the significance level (\(\alpha = 0.05\)), we fail to reject the null hypothesis.
+Since the p-value (\(0.1447\)) is greater than the significance level (\(\alpha = 0.05\)), we fail to reject the null hypothesis.
 
 There is no statistically significant evidence to suggest that the median blood sugar level in the population is less than 120.
 
@@ -286,6 +265,8 @@ The shape of the distribution for variable `totalcost` is extremely right-skewed
 ```{r}
 heart_data <- heart_data %>%
   mutate(comp_bin = ifelse(complications == 0, 0, 1))
+
+summary(heart_data)
 ```
 
 ### (d)
@@ -465,4 +446,4 @@ Key Metrics from MLR Model
    - Interpretation: Even after adjusting for `comp_bin`, `age`, `gender`, and `duration`, ER visits remain a statistically significant positive predictor of total cost (\( p < 0.05 \)).
 
 
-Since the investigator’s primary objective is the association between total cost and ER visits, the **SLR model** would be used to address the objective. It directly quantifies the relationship without adjusting for additional variables, making it simpler and more interpretable for this specific research question. However, if confounders like `comp_bin` are taken into consideration, the **MLR model** would be more appropriate.
+The **MLR model** would be used to address the objective because it has a larger \( R^2 \) value. \( R^2 \) represents the proportion of variance explained by model, and there is a significant improvement in explanatory power when additional covariates are included.
