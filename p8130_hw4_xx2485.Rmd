@@ -8,6 +8,7 @@ output: pdf_document
 Loading needed packages
 ```{r, message = FALSE}
 library(readxl)
+library(BSDA)
 library(janitor)
 library(tidyverse)
 library(knitr)
@@ -21,19 +22,9 @@ Perform sign test.
 data <- c(125, 123, 117, 123, 115, 112, 128, 118, 124, 111, 116, 109, 
           125, 120, 113, 123, 112, 118, 121, 118, 122, 115, 105, 118, 131)
 
-# Define the hypothesized median
-median_hypothesis <- 120
+sign_test_result <- SIGN.test(data, md = 120, alternative = "less")
 
-# Count values above and below the hypothesized median
-above <- sum(data > median_hypothesis)
-below <- sum(data < median_hypothesis)
-
-# Perform the sign test
-binom_test <- binom.test(below, below + above, p = 0.5, alternative = "less")
-
-# Report results
-binom_test
-
+sign_test_result
 ```
 We conducted an exact binomial test to evaluate whether the median blood sugar level in the population is less than 120. The hypotheses were as follows:
 
@@ -47,10 +38,9 @@ H_a: \text{The true median is } < 120 \quad \text{(probability of success } > 0.
 The test results are:
 - Number of successes (blood sugar readings below 120): \(14\)
 - Number of trials: \(24\)
-- p-value: \(0.8463\)
-- 95\% confidence interval for the probability of success: \([0.000, 0.7536]\)
+- p-value: \(0.2706\)
 
-Since the p-value (\(0.8463\)) is greater than the significance level (\(\alpha = 0.05\)), we fail to reject the null hypothesis. 
+Since the p-value (\(0.2706\)) is greater than the significance level (\(\alpha = 0.05\)), we fail to reject the null hypothesis. 
 
 Conclusion: There is no statistically significant evidence to suggest that the median blood sugar level in the population is less than 120.
 
@@ -92,7 +82,7 @@ summary(model)
 ```
 
 
-The regression model shows that \( \ln(\text{Brain Mass}) \) is a significant predictor of the glia-neuron ratio in nonhuman species (\(p < 0.001\)). The positive slope (\(0.1811\)) indicates that species with larger brain masses (in terms of the natural logarithm) tend to have higher glia-neuron ratios. The model explains a substantial portion of the variability in the data (\(R^2 = 0.6274\)), making it a good fit for the observed relationship.
+The regression model shows that \( \ln(\text{Brain Mass}) \) is a significant predictor of the glia-neuron ratio in nonhuman species (\(p < 0.001\)). The positive slope (\(0.1811\)) indicates that species with larger brain masses (in terms of the natural logarithm) tend to have higher glia-neuron ratios. The model explains a substantial portion of the variability in the data (\(R^2 = 0.6025\)), making it a good fit for the observed relationship.
 
 ### (b)
 
